@@ -4,3 +4,5 @@
 /Blazor/obj
 /Blazor/bin
 Blazor/appsettings.json
+Blazor/appsettings.Development.json
+Blazor/appsettings.Development.json

@@ -1,0 +1,88 @@
+.banko-preview-table {
+    position: relative;
+    z-index: 1;
+    border: 2px solid #2c3e50;
+    margin: 20px auto;
+    border-collapse: collapse;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.banko-preview-table td {
+    border: 1px solid #2c3e50;
+    width: 70px;
+    height: 70px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 600;
+    background-color: white;
+    transition: all 0.3s ease;
+}
+
+.banko-preview-table td:hover {
+    background-color: #f8f9fa;
+}
+
+.banko-preview-table td.removed {
+    background-color: #d3d3d3;
+    color: #888;
+    text-decoration: line-through;
+}
+
+.banko-preview-title {
+    text-align: center;
+    color: #2c3e50;
+    padding: 15px;
+    font-size: 1.5rem;
+    margin: 20px 0;
+    font-weight: 600;
+    position: relative;
+}
+
+.banko-preview-title::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 3px;
+    background-color: #2c3e50;
+    border-radius: 2px;
+}
+
+.plate-card {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.status-card {
+    margin: 20px 0;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid;
+}
+
+.status-one-row {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+}
+
+.status-two-row {
+    background-color: #d1ecf1;
+    border-color: #0dcaf0;
+    color: #055160;
+}
+
+.status-full-plate {
+    background-color: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+}
+

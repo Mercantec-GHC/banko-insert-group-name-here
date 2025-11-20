@@ -1,0 +1,118 @@
+@* Genanvendelig komponent til visning af bankoplade *@
+
+<div class="plate-card">
+    <h2 class="banko-preview-title">
+        Plate ID: @Plate.Id
+    </h2>
+
+    @* Status kort - kun hvis ShowStatus er true *@
+    @if (ShowStatus)
+    {
+        @if (Plate.CheckForFullPlate())
+        {
+            <div class="status-card status-full-plate">
+                <h4>🎉 FULD PLADE - BANKO! 🎉</h4>
+                <p>Alle tre rækker er fulde!</p>
+            </div>
+        }
+        else if (Plate.CheckForTwoRow())
+        {
+            <div class="status-card status-two-row">
+                <h4>✅ TO RÆKKER - BANKO!</h4>
+                <p>To rækker er fulde!</p>
+            </div>
+        }
+        else if (Plate.CheckForOneRow())
+        {
+            <div class="status-card status-one-row">
+                <h4>✓ EN RÆKKE - BANKO!</h4>
+                <p>En række er fuld!</p>
+            </div>
+        }
+        else
+        {
+            <div class="status-card" style="background-color: #f8f9fa; border-color: #dee2e6; color: #495057;">
+                <p>Ingen banko endnu. Række 1: @Plate.Row1.Count tal, Række 2: @Plate.Row2.Count tal, Række 3: @Plate.Row3.Count tal</p>
+            </div>
+        }
+    }
+
+    @* Bankoplade *@
+    <table class="banko-preview-table">
+        <tr>
+            @for (int col = 0; col < 9; col++)
+            {
+                var cellValue = GetCellValue(Plate.Row1, col);
+                var isRemoved = ShowRemovedNumbers && IsCellRemoved(Plate, OriginalPlate, Plate.Row1, col);
+                <td class="@(isRemoved ? "removed" : "")">@cellValue</td>
+            }
+        </tr>
+        <tr>
+            @for (int col = 0; col < 9; col++)
+            {
+                var cellValue = GetCellValue(Plate.Row2, col);
+                var isRemoved = ShowRemovedNumbers && IsCellRemoved(Plate, OriginalPlate, Plate.Row2, col);
+                <td class="@(isRemoved ? "removed" : "")">@cellValue</td>
+            }
+        </tr>
+        <tr>
+            @for (int col = 0; col < 9; col++)
+            {
+                var cellValue = GetCellValue(Plate.Row3, col);
+                var isRemoved = ShowRemovedNumbers && IsCellRemoved(Plate, OriginalPlate, Plate.Row3, col);
+                <td class="@(isRemoved ? "removed" : "")">@cellValue</td>
+            }
+        </tr>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Blazor.Models.Plate Plate { get; set; } = null!;
+
+    [Parameter]
+    public Blazor.Models.Plate? OriginalPlate { get; set; }
+
+    [Parameter]
+    public bool ShowStatus { get; set; } = false;
+
+    [Parameter]
+    public bool ShowRemovedNumbers { get; set; } = false;
+
+    // Hjælpemetode til at få værdien for en celle baseret på kolonne
+    private string GetCellValue(List<int> row, int columnIndex)
+    {
+        if (row == null || row.Count == 0)
+            return "";
+
+        int minValue = columnIndex * 10;
+        int maxValue = columnIndex == 8 ? 90 : (columnIndex + 1) * 10 - 1;
+
+        var matchingNumber = row.FirstOrDefault(n => n >= minValue && n <= maxValue);
+        return matchingNumber > 0 ? matchingNumber.ToString() : "";
+    }
+
+    // Tjek om en celle er blevet fjernet (findes i original men ikke i nuværende)
+    private bool IsCellRemoved(Blazor.Models.Plate currentPlate, Blazor.Models.Plate? originalPlate, List<int> currentRow, int columnIndex)
+    {
+        if (originalPlate == null || currentPlate == null)
+            return false;
+
+        int minValue = columnIndex * 10;
+        int maxValue = columnIndex == 8 ? 90 : (columnIndex + 1) * 10 - 1;
+
+        // Find tallet i original række (den samme række vi tjekker)
+        var originalNumber = currentRow == currentPlate.Row1 ? 
+            originalPlate.Row1.FirstOrDefault(n => n >= minValue && n <= maxValue) :
+            currentRow == currentPlate.Row2 ?
+            originalPlate.Row2.FirstOrDefault(n => n >= minValue && n <= maxValue) :
+            originalPlate.Row3.FirstOrDefault(n => n >= minValue && n <= maxValue);
+
+        if (originalNumber == 0)
+            return false;
+
+        // Tjek om tallet stadig findes i nuværende række
+        return !currentRow.Contains(originalNumber);
+    }
+}
+

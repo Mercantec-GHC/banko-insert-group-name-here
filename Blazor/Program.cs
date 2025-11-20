@@ -1,4 +1,5 @@
 using Blazor.Components;
+using Blazor.Service;
 
 namespace Blazor
 {
@@ -11,6 +12,9 @@ namespace Blazor
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
+
+            // Registrer DBService
+            builder.Services.AddScoped<DBService>();
 
             var app = builder.Build();
 

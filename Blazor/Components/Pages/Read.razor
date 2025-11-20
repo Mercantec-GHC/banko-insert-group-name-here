@@ -1,0 +1,159 @@
+﻿@page "/read"
+@inject Blazor.Service.DBService DBService
+@rendermode InteractiveServer
+
+<PageTitle>Læs Bankoplader</PageTitle>
+
+<h1>Læs Bankoplader</h1>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @(isSuccess ? "alert-success" : "alert-danger")" role="alert">
+        @statusMessage
+    </div>
+}
+
+<div class="search-container">
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="searchId" class="form-label">Søg efter Plate ID</label>
+                <div class="input-group">
+                    <InputText id="searchId" class="form-control" 
+                               Value="@searchIdInput" 
+                               ValueChanged="@((string value) => { searchIdInput = value; })"
+                               ValueExpression="@(() => searchIdInput)"
+                               placeholder="Indtast Plate ID" />
+                    <button class="btn btn-primary" type="button" @onclick="SearchPlate" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        }
+                        Søg
+                    </button>
+                    <button class="btn btn-secondary" type="button" @onclick="LoadAllPlates" disabled="@isLoading">
+                        Vis Alle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Indlæser...</span>
+        </div>
+        <p class="mt-2">Indlæser plader...</p>
+    </div>
+}
+else if (plates == null || plates.Count == 0)
+{
+    <div class="alert alert-info" role="alert">
+        @if (isSearchMode)
+        {
+            <text>Ingen plate fundet med ID: "@searchIdInput"</text>
+        }
+        else
+        {
+            <text>Ingen plader fundet i databasen.</text>
+        }
+    </div>
+}
+else
+{
+    <div class="mb-3">
+        <p class="text-muted">Antal plader: @plates.Count</p>
+    </div>
+
+    @foreach (var plate in plates)
+    {
+        <BankoPlate Plate="@plate" ShowStatus="false" ShowRemovedNumbers="false" />
+    }
+}
+
+@code {
+    private List<Blazor.Models.Plate>? plates;
+    private string searchIdInput = "";
+    private string statusMessage = "";
+    private bool isSuccess = false;
+    private bool isLoading = false;
+    private bool isSearchMode = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllPlates();
+    }
+
+    private async Task LoadAllPlates()
+    {
+        isLoading = true;
+        statusMessage = "";
+        isSearchMode = false;
+        searchIdInput = "";
+
+        try
+        {
+            plates = await DBService.ReadAllPlatesAsync();
+            if (plates.Count == 0)
+            {
+                statusMessage = "Ingen plader fundet i databasen.";
+                isSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Fejl ved indlæsning af plader: {ex.Message}";
+            isSuccess = false;
+            plates = new List<Blazor.Models.Plate>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchPlate()
+    {
+        if (string.IsNullOrWhiteSpace(searchIdInput))
+        {
+            statusMessage = "Indtast venligst et Plate ID";
+            isSuccess = false;
+            return;
+        }
+
+        isLoading = true;
+        statusMessage = "";
+        isSearchMode = true;
+
+        try
+        {
+            var plate = await DBService.ReadPlateAsync(searchIdInput);
+            if (plate != null)
+            {
+                plates = new List<Blazor.Models.Plate> { plate };
+                statusMessage = $"Plate '{searchIdInput}' blev fundet!";
+                isSuccess = true;
+            }
+            else
+            {
+                plates = new List<Blazor.Models.Plate>();
+                statusMessage = $"Ingen plate fundet med ID: '{searchIdInput}'";
+                isSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Fejl ved søgning: {ex.Message}";
+            isSuccess = false;
+            plates = new List<Blazor.Models.Plate>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+}

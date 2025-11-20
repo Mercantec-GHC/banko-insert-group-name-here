@@ -1,0 +1,253 @@
+﻿@page "/Solver"
+@inject Blazor.Service.DBService DBService
+@rendermode InteractiveServer
+
+<PageTitle>Banko Solver</PageTitle>
+
+
+<h1>Banko Solver</h1>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @(isSuccess ? "alert-success" : "alert-danger")" role="alert">
+        @statusMessage
+    </div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label for="numberInput" class="form-label">Indtast tal der bliver råbt op</label>
+                    <div class="input-group">
+                        <InputNumber id="numberInput" class="form-control" 
+                                     @bind-Value="numberToRemove"
+                                     @onkeydown="HandleKeyDown"
+                                     placeholder="Indtast tal (1-90)" />
+                        <button class="btn btn-success" type="button" @onclick="RemoveNumberFromAllPlates" disabled="@(numberToRemove == null || isLoading || plates == null || plates.Count == 0)">
+                            Fjern Tal
+                        </button>
+                    </div>
+                    <small class="form-text text-muted">Indtast et tal mellem 1 og 90</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button class="btn btn-primary" type="button" @onclick="LoadAllPlates" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            }
+                            Indlæs Alle Plader
+                        </button>
+                        <button class="btn btn-warning mt-2" type="button" @onclick="ResetAllPlates" disabled="@(plates == null || plates.Count == 0 || isLoading)">
+                            Nulstil Alle
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Råbte tal *@
+@if (calledNumbers.Count > 0)
+{
+    <div class="called-numbers mb-4">
+        <h5>Råbte tal (@calledNumbers.Count):</h5>
+        @foreach (var num in calledNumbers)
+        {
+            <span class="called-number-badge">@num</span>
+        }
+    </div>
+}
+
+@* Status oversigt *@
+@if (plates != null && plates.Count > 0)
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5>Status Oversigt</h5>
+            <p>Total plader: @plates.Count</p>
+            <p>Fulde plader: @plates.Count(p => p.CheckForFullPlate())</p>
+            <p>To rækker: @plates.Count(p => p.CheckForTwoRow() && !p.CheckForFullPlate())</p>
+            <p>En række: @plates.Count(p => p.CheckForOneRow() && !p.CheckForTwoRow() && !p.CheckForFullPlate())</p>
+        </div>
+    </div>
+}
+
+@if (plates != null && plates.Count > 0)
+{
+    @foreach (var plate in plates)
+    {
+        var originalPlate = originalPlates != null ? originalPlates.FirstOrDefault(p => p.Id == plate.Id) : null;
+        <BankoPlate Plate="@plate" OriginalPlate="@originalPlate" ShowStatus="true" ShowRemovedNumbers="true" />
+    }
+}
+else if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Indlæser...</span>
+        </div>
+        <p class="mt-2">Indlæser plader...</p>
+    </div>
+}
+else
+{
+    <div class="alert alert-info" role="alert">
+        Klik på "Indlæs Alle Plader" for at starte.
+    </div>
+}
+
+@code {
+    private List<Blazor.Models.Plate>? plates;
+    private List<Blazor.Models.Plate>? originalPlates;
+    private string statusMessage = "";
+    private bool isSuccess = false;
+    private bool isLoading = false;
+    private int? numberToRemove;
+    private List<int> calledNumbers = new List<int>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllPlates();
+    }
+
+    private async Task LoadAllPlates()
+    {
+        isLoading = true;
+        statusMessage = "";
+
+        try
+        {
+            var loadedPlates = await DBService.ReadAllPlatesAsync();
+            if (loadedPlates != null && loadedPlates.Count > 0)
+            {
+                // Opret kopier af alle plader så vi kan arbejde med dem
+                plates = loadedPlates.Select(plate => new Blazor.Models.Plate(
+                    plate.Id,
+                    new List<int>(plate.Row1),
+                    new List<int>(plate.Row2),
+                    new List<int>(plate.Row3)
+                )).ToList();
+
+                originalPlates = loadedPlates.Select(plate => new Blazor.Models.Plate(
+                    plate.Id,
+                    new List<int>(plate.Row1),
+                    new List<int>(plate.Row2),
+                    new List<int>(plate.Row3)
+                )).ToList();
+
+                calledNumbers.Clear();
+                numberToRemove = null;
+                statusMessage = $"{plates.Count} plader blev indlæst!";
+                isSuccess = true;
+            }
+            else
+            {
+                statusMessage = "Ingen plader fundet i databasen";
+                isSuccess = false;
+                plates = new List<Blazor.Models.Plate>();
+                originalPlates = new List<Blazor.Models.Plate>();
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Fejl ved indlæsning: {ex.Message}";
+            isSuccess = false;
+            plates = new List<Blazor.Models.Plate>();
+            originalPlates = new List<Blazor.Models.Plate>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void RemoveNumberFromAllPlates()
+    {
+        if (plates == null || plates.Count == 0 || numberToRemove == null)
+            return;
+
+        if (numberToRemove < 1 || numberToRemove > 90)
+        {
+            statusMessage = "Tallet skal være mellem 1 og 90";
+            isSuccess = false;
+            return;
+        }
+
+        // Tjek om tallet allerede er blevet fjernet
+        if (calledNumbers.Contains(numberToRemove.Value))
+        {
+            statusMessage = $"Tallet {numberToRemove.Value} er allerede blevet fjernet";
+            isSuccess = false;
+            return;
+        }
+
+        // Fjern tallet fra alle plader
+        foreach (var plate in plates)
+        {
+            plate.RemoveNumber(numberToRemove.Value);
+        }
+
+        calledNumbers.Add(numberToRemove.Value);
+        calledNumbers.Sort();
+
+        // Tjek status for alle plader
+        var fullPlates = plates.Count(p => p.CheckForFullPlate());
+        var twoRowPlates = plates.Count(p => p.CheckForTwoRow() && !p.CheckForFullPlate());
+        var oneRowPlates = plates.Count(p => p.CheckForOneRow() && !p.CheckForTwoRow() && !p.CheckForFullPlate());
+
+        if (fullPlates > 0)
+        {
+            statusMessage = $"🎉 {fullPlates} fuld(e) plade(r)! Tallet {numberToRemove.Value} blev fjernet fra alle plader.";
+        }
+        else if (twoRowPlates > 0)
+        {
+            statusMessage = $"✅ {twoRowPlates} plade(r) har to rækker! Tallet {numberToRemove.Value} blev fjernet.";
+        }
+        else if (oneRowPlates > 0)
+        {
+            statusMessage = $"✓ {oneRowPlates} plade(r) har en række! Tallet {numberToRemove.Value} blev fjernet.";
+        }
+        else
+        {
+            statusMessage = $"Tallet {numberToRemove.Value} blev fjernet fra alle {plates.Count} plader";
+        }
+
+        isSuccess = true;
+        numberToRemove = null;
+    }
+
+    private void ResetAllPlates()
+    {
+        if (originalPlates == null || originalPlates.Count == 0)
+            return;
+
+        // Gendan alle plader til original tilstand
+        plates = originalPlates.Select(plate => new Blazor.Models.Plate(
+            plate.Id,
+            new List<int>(plate.Row1),
+            new List<int>(plate.Row2),
+            new List<int>(plate.Row3)
+        )).ToList();
+
+        calledNumbers.Clear();
+        numberToRemove = null;
+        statusMessage = "Alle plader blev nulstillet";
+        isSuccess = true;
+    }
+
+    // Håndterer tastaturtryk - kalder RemoveNumberFromAllPlates hvis Enter trykkes
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && numberToRemove != null && !isLoading && plates != null && plates.Count > 0)
+        {
+            RemoveNumberFromAllPlates();
+        }
+    }
+}

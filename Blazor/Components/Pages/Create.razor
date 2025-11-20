@@ -1,0 +1,299 @@
+﻿@page "/CreatePlate"
+@inject Blazor.Service.DBService DBService
+@rendermode InteractiveServer
+
+<PageTitle>Opret Bankoplade</PageTitle>
+
+<style>
+    .banko-preview-table {
+        position: relative;
+        z-index: 1;
+        border: 2px solid #2c3e50;
+        margin: 20px auto;
+        border-collapse: collapse;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .banko-preview-table td {
+        border: 1px solid #2c3e50;
+        width: 70px;
+        height: 70px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: 600;
+        background-color: white;
+        transition: all 0.3s ease;
+    }
+
+    .banko-preview-table td:hover {
+        background-color: #f8f9fa;
+    }
+
+    .banko-preview-title {
+        text-align: center;
+        color: #2c3e50;
+        padding: 15px;
+        font-size: 2rem;
+        margin: 20px 0;
+        font-weight: 600;
+        position: relative;
+    }
+
+    .banko-preview-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 3px;
+        background-color: #2c3e50;
+        border-radius: 2px;
+    }
+</style>
+
+<h1>Opret Ny Bankoplade</h1>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @(isSuccess ? "alert-success" : "alert-danger")" role="alert">
+        @statusMessage
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <EditForm Model="@newPlate" OnValidSubmit="@HandleSubmit" FormName="CreatePlateForm">
+            <DataAnnotationsValidator />
+            
+            <div class="mb-3">
+                <label for="plateId" class="form-label">Plate ID <span class="text-danger">*</span></label>
+                <InputText id="plateId" class="form-control" 
+                           Value="@plateIdInput" 
+                           ValueChanged="@((string value) => { plateIdInput = value; OnPlateIdChanged(); })"
+                           ValueExpression="@(() => plateIdInput)" />
+                @if (string.IsNullOrWhiteSpace(plateIdInput))
+                {
+                    <div class="text-danger small">Plate ID er påkrævet</div>
+                }
+            </div>
+
+            <div class="mb-3">
+                <label for="row1" class="form-label">Række 1 (kommaseparerede tal, f.eks. 1,12,23,46,87)</label>
+                <InputText id="row1" class="form-control" 
+                           Value="@row1Input" 
+                           ValueChanged="@((string value) => { row1Input = value; OnInputChanged(); })"
+                           ValueExpression="@(() => row1Input)" />
+                <small class="form-text text-muted">Indtast tal adskilt af komma</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="row2" class="form-label">Række 2 (kommaseparerede tal)</label>
+                <InputText id="row2" class="form-control" 
+                           Value="@row2Input" 
+                           ValueChanged="@((string value) => { row2Input = value; OnInputChanged(); })"
+                           ValueExpression="@(() => row2Input)" />
+                <small class="form-text text-muted">Indtast tal adskilt af komma</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="row3" class="form-label">Række 3 (kommaseparerede tal)</label>
+                <InputText id="row3" class="form-control" 
+                           Value="@row3Input" 
+                           ValueChanged="@((string value) => { row3Input = value; OnInputChanged(); })"
+                           ValueExpression="@(() => row3Input)" />
+                <small class="form-text text-muted">Indtast tal adskilt af komma</small>
+            </div>
+
+            <button type="submit" class="btn btn-primary" disabled="@(!IsFormValid || isSubmitting)">
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <text>Opretter...</text>
+                }
+                else
+                {
+                    <text>Opret Plate</text>
+                }
+            </button>
+        </EditForm>
+    </div>
+</div>
+
+@if (newPlate.Row1 != null && (newPlate.Row1.Count > 0 || newPlate.Row2.Count > 0 || newPlate.Row3.Count > 0))
+{
+    <div class="mt-4">
+        <h2 class="banko-preview-title">
+            Forhåndsvisning - @plateIdInput
+        </h2>
+        <table class="banko-preview-table">
+            <tr>
+                @for (int col = 0; col < 9; col++)
+                {
+                    <td>@GetCellValue(newPlate.Row1, col)</td>
+                }
+            </tr>
+            <tr>
+                @for (int col = 0; col < 9; col++)
+                {
+                    <td>@GetCellValue(newPlate.Row2, col)</td>
+                }
+            </tr>
+            <tr>
+                @for (int col = 0; col < 9; col++)
+                {
+                    <td>@GetCellValue(newPlate.Row3, col)</td>
+                }
+            </tr>
+        </table>
+    </div>
+}
+
+@code {
+    private Blazor.Models.Plate newPlate = new Blazor.Models.Plate("", new List<int>(), new List<int>(), new List<int>());
+    private string plateIdInput = "";
+    private string row1Input = "";
+    private string row2Input = "";
+    private string row3Input = "";
+    private string statusMessage = "";
+    private bool isSuccess = false;
+    private bool isSubmitting = false;
+
+    // Validering - knappen er kun aktiv når formularen er gyldig
+    private bool IsFormValid
+    {
+        get
+        {
+            // Plate ID skal være udfyldt
+            if (string.IsNullOrWhiteSpace(plateIdInput))
+                return false;
+
+            // Mindst én række skal indeholde gyldige tal
+            UpdatePlateFromInputs();
+            if (newPlate.Row1.Count == 0 && newPlate.Row2.Count == 0 && newPlate.Row3.Count == 0)
+                return false;
+
+            return true;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Sørg for at tabellen eksisterer
+        try
+        {
+            await DBService.EnsureTableExistsAsync();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Fejl ved initialisering: {ex.Message}";
+            isSuccess = false;
+        }
+    }
+
+    private void ParseRowInput(string input, List<int> targetList)
+    {
+        targetList.Clear();
+        if (!string.IsNullOrWhiteSpace(input))
+        {
+            var parts = input.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var part in parts)
+            {
+                if (int.TryParse(part.Trim(), out int number))
+                {
+                    targetList.Add(number);
+                }
+            }
+        }
+    }
+
+    private void OnPlateIdChanged()
+    {
+        newPlate.Id = plateIdInput;
+        StateHasChanged(); // Opdater UI for at vise validering
+    }
+
+    private void OnInputChanged()
+    {
+        UpdatePlateFromInputs();
+        StateHasChanged(); // Opdater UI for at vise validering
+    }
+
+    private void UpdatePlateFromInputs()
+    {
+        ParseRowInput(row1Input, newPlate.Row1);
+        ParseRowInput(row2Input, newPlate.Row2);
+        ParseRowInput(row3Input, newPlate.Row3);
+    }
+
+    // Hjælpemetode til at få værdien for en celle baseret på kolonne
+    // Bankoplader har 9 kolonner: 1-9, 10-19, 20-29, 30-39, 40-49, 50-59, 60-69, 70-79, 80-90
+    private string GetCellValue(List<int> row, int columnIndex)
+    {
+        if (row == null || row.Count == 0)
+            return "";
+
+        // Find tallet der hører til denne kolonne
+        // Kolonne 0: 1-9, Kolonne 1: 10-19, Kolonne 2: 20-29, osv.
+        int minValue = columnIndex * 10;
+        int maxValue = columnIndex == 8 ? 90 : (columnIndex + 1) * 10 - 1;
+
+        var matchingNumber = row.FirstOrDefault(n => n >= minValue && n <= maxValue);
+        return matchingNumber > 0 ? matchingNumber.ToString() : "";
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        statusMessage = "";
+
+        try
+        {
+            // Opdater plate med de parsede værdier
+            newPlate.Id = plateIdInput;
+            UpdatePlateFromInputs();
+
+            // Validering (burde allerede være tjekket, men dobbelttjek)
+            if (!IsFormValid)
+            {
+                statusMessage = "Udfyld venligst alle påkrævede felter korrekt";
+                isSuccess = false;
+                isSubmitting = false;
+                return;
+            }
+
+            // Opret plate i databasen
+            var result = await DBService.CreatePlateAsync(newPlate);
+
+            if (result)
+            {
+                statusMessage = $"Plate '{newPlate.Id}' blev oprettet succesfuldt!";
+                isSuccess = true;
+                
+                // Nulstil formular
+                newPlate = new Blazor.Models.Plate("", new List<int>(), new List<int>(), new List<int>());
+                plateIdInput = "";
+                row1Input = "";
+                row2Input = "";
+                row3Input = "";
+            }
+            else
+            {
+                statusMessage = $"Plate '{newPlate.Id}' eksisterer allerede i databasen";
+                isSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Fejl ved oprettelse af plate: {ex.Message}";
+            isSuccess = false;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
