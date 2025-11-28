@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="seedrandom.js"></script>
+    <script src="generator.js"></script>
+    <script src="myScript.js"></script>
+    <title>Document</title>
+</head>
+<body>
+    <form onsubmit="checkNumber(event);">
+        <input type="number" id="numberInput" placeholder="Enter a number" min="1" max="90" required>
+        <button type="submit">Check number</button>
+    </form>
+    <button type="button" onclick="reset()">Remove Checked Numbers</button>
+    <div>
+        <h1>Picked Numbers</h1>
+        <div id="pickedNumbersDisplay"></div>
+        <h2>Completed Rows</h2>
+        <p>Row 1: <span id="row1Completed">0 (Seed: None)</span></p>
+        <p>Row 2: <span id="row2Completed">0 (Seed: None)</span></p>
+        <p>Row 3: <span id="row3Completed">0 (Seed: None)</span></p>
+    </div>
+</body>
+</html>
